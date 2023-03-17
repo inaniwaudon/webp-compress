@@ -1,10 +1,8 @@
+import argparse
 import glob
 import json
 import os
-import sys
 from PIL import ExifTags, Image
-
-base_dir = "D:/compressed-photo/"
 
 def get_exif(img):
     exif_dict = {}
@@ -25,36 +23,44 @@ def rotate_image(img, orientation):
     if orientation == 4:
         return img.transpose(Image.FLIP_TOP_BOTTOM)
     if orientation == 5:
-        return img.transpose(Image.FLIP_LEFT_RIGHT).transpose(Pillow.ROTATE_90)
+        return img.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_90)
     if orientation == 6:
         return img.transpose(Image.ROTATE_270)
     if orientation == 7:
-        return img.transpose(Image.FLIP_LEFT_RIGHT).transpose(Pillow.ROTATE_270)
+        return img.transpose(Image.FLIP_LEFT_RIGHT).transpose(Image.ROTATE_270)
     if orientation == 8:
         return img.transpose(Image.ROTATE_90)
 
-org_dir = sys.argv[1]
-dst_dir = base_dir + org_dir.split("/")[-1]
-from_index = int(sys.argv[2]) if len(sys.argv) >= 3 else 0
-print("to:" + dst_dir)
+if __name__== "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("org_dir")
+    parser.add_argument("dst_dir")
+    parser.add_argument("-f", "--fromindex", type=int, default=0)
+    args = parser.parse_args()
 
-os.mkdir(dst_dir)
-matches = os.path.join(org_dir, "*")
+    if not os.path.exists(args.dst_dir):
+        os.mkdir(args.dst_dir)
 
-for i, path in enumerate(glob.glob(matches)):
-    if i < from_index:
-        continue
+    matches = os.path.join(args.org_dir, "*")
+    sorted_files = sorted(glob.glob(matches))
 
-    filename = os.path.splitext(os.path.basename(path))
-    webp_path = os.path.join(dst_dir, filename[0] + ".webp")
-    temp_png_path = os.path.join(dst_dir, filename[0] + ".png")
-    json_path = os.path.join(dst_dir, filename[0] + ".json")
+    for i, path in enumerate(sorted_files):
+        if i < args.fromindex:
+            continue
 
-    img = Image.open(path)
-    exif, orientation = get_exif(img)
-    with open(json_path, "w") as fp:
-        json.dump(exif, fp, indent=2, ensure_ascii=False)
+        filename = os.path.splitext(os.path.basename(path))
+        webp_path = os.path.join(args.dst_dir, filename[0] + ".webp")
+        json_path = os.path.join(args.dst_dir, filename[0] + ".json")
 
-    rotated_img = rotate_image(img, orientation)
-    rotated_img.save(webp_path)
-    print(f"saved: {webp_path}")
+        if os.path.exists(webp_path):
+            print(f"{i}\talready exists: {webp_path}")
+            continue
+
+        img = Image.open(path)
+        exif, orientation = get_exif(img)
+        with open(json_path, "w") as fp:
+            json.dump(exif, fp, indent=2, ensure_ascii=False)
+
+        rotated_img = rotate_image(img, orientation)
+        rotated_img.save(webp_path)
+        print(f"{i}\tsaved: {webp_path}")
